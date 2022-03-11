@@ -1,7 +1,7 @@
  
 #include <mbed.h>
 #include "mpu6500_spi.h"
-#include "mpu6000_registermap.h"
+#include "mpu6500_registermap.h"
  
 mpu6500_spi::mpu6500_spi(SPI& _spi, PinName _cs) : spi(_spi), cs(_cs) {}
  
@@ -10,35 +10,77 @@ bool mpu6500_spi::init_inav(){
  unsigned int response;
     spi.format(8,0);
     spi.frequency(1000000);
+
+    printf("MPU6500::initialization started\n");
+    // Chip Reset Sequence - P.42 in RM-MPU-6500A-00  R2.1
 		ThisThread::sleep_for(chrono::milliseconds(150));
-    write2spi(0x6B,0x80);
+    write2spi(MPUREG_PWR_MGMT_1,0x80);
 		ThisThread::sleep_for(chrono::milliseconds(150));
-    write2spi(0x68,0x07);
+    write2spi(MPUREG_SIGNAL_PATH_RESET,0x07);
+		ThisThread::sleep_for(chrono::milliseconds(150));
+ 
+    // Default to internal 20MHz clock source until hyro oscillator stabilizes
+    write2spi(MPUREG_PWR_MGMT_1,0x00);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x6B,0x00);
+    // Set Gyro oscillator as the clock source. This is done for more accuracy when calculating angles. Datasheet section 4.12 Clocking   
+    write2spi(MPUREG_PWR_MGMT_1,0x01);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x6B,0x01);
+
+    // Set Gyro scale to +-250 dps
+    write2spi(MPUREG_GYRO_CONFIG,0x00);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x1B,0x00);
+    // Set Gyro scale to +-2g dps    
+    write2spi(MPUREG_ACCEL_CONFIG,0x00);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x1C,0x00);
+
+    // Set Gyro Digital Low Pass Filter (DLPF) Bandwidth to 41 Hz (5.9 ms) and the Temperature BW to 42 Hz.
+    // Ensure the FCHOICE_B bits in the MPUREG_GYRO_CONFIG register are set to 00 for this to work, specially when configuring the gyro range later on.
+    write2spi(MPUREG_CONFIG,0x03);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x1A,0x03);
+    // Set Accelerometer Digital Low Pass Filter (DLPF) Bandwidth to 41 Hz (11.80 ms).
+    // Ensure the ACCEL_FCHOICE_B bit in the MPUREG_ACCEL_CONFIG_2 register are set to 0 for this to work.
+    write2spi(MPUREG_ACCEL_CONFIG_2,0x03);
+		ThisThread::sleep_for(chrono::milliseconds(15));       
+
+    // Sets the Sampler rate divider to 0, which would result in a sample rate of 1Hz for the gyro when DLPF is enabled.
+    write2spi(MPUREG_SMPLRT_DIV,0x00);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x19,0x00);
+
+    // Interrupt Configurator     
+    write2spi(MPUREG_INT_PIN_CFG ,0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 1 << 1 | 0 << 0);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x37,0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 1 << 1 | 0 << 0);
+    write2spi(MPUREG_INT_ENABLE,1<<0);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    write2spi(0x38,1<<0);
-		ThisThread::sleep_for(chrono::milliseconds(15));
-	write2spi(MPUREG_CONFIG,BITS_DLPF_CFG_42HZ);
-		set_acc_scale(BITS_FS_2G);
-        set_gyro_scale(BITS_FS_250DPS);
-		return true;
+    printf("MPU6050::initialization ended\n");
+
+	return true;
+    
+}
+
+bool mpu6500_spi::configuration(){
+ 
+	write2spi(MPUREG_CONFIG,BITS_DLPF_CFG_42HZ); // Set Low Pass Filter Bandwidth to 41Hz (5.9 ms) for the Gyroscope
+    write2spi(MPUREG_ACCEL_CONFIG_2,0x03); // Set Low Pass Filter Bandwidth to 41Hz (11.8 ms) for the Accelerometer
+    set_gyro_scale(BITS_FS_1000DPS); // Change the scale of the Gyroscope to +/- 1000 degrees/sec
+    set_acc_scale(BITS_FS_4G); // Change the scale of the Accelerometer to +/- 4g - Sensitivity: 4096 LSB/mg
+    
+	return true;
     
 }
 
 
+/** Verify the SPI connection.
+ * Make sure the device is connected and responds as expected.
+ * @return True if connection is valid, false otherwise
+ */
+bool mpu6500_spi::testConnection()
+{
+    printf("MPU6500::testConnection start\n");
+    uint8_t deviceId = whoami();
+    printf("DeviceId = %d\n",deviceId);
+
+    return deviceId == 0x70;
+}
 
 int mpu6500_spi::enableInterrupt()
 {
@@ -363,9 +405,9 @@ void mpu6500_spi::deselect() {
 }
 
 void mpu6500_spi::write2spi(uint8_t reg,uint8_t val){
-	  unsigned int response;
-		cs = 0;
+	unsigned int response;
+	select();
     response = spi.write(reg);
     response = spi.write(val);
-    cs = 1;
+    deselect();
 }

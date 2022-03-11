@@ -16,48 +16,58 @@ DigitalOut cs(PB_0); // Chip Select Pin
 
 mpu6500_spi mpu(spi, PB_0);
 
+
+// -------------------------------
+// Initialization of Values and Variables
+// -------------------------------
+
+// Sample time of main loops
+float Ts = 0.007; // Around 143 Hz. Do not change. This is the lowest value possible if printing to a serial connection is needed.
+
+// MPU 6050 Variables - Acceleration and Gyroscope Raw and Converted Data Variables
+int16_t AccX_Raw, AccY_Raw, AccZ_Raw;
+int16_t GyroX_Raw, GyroY_Raw, GyroZ_Raw;
+double AccX_g, AccY_g, AccZ_g;
+double GyroX_Degrees, GyroY_Degrees, GyroZ_Degrees, GyroZ_RadiansPerSecond;
+
+// printf Variable
+int k = 0;
+
+
+// -------------------------------
+//  Variables: Here define variables such as gains etc.
+// -------------------------------
+
+// Accelerometer and Gyroscope
+
+
+// Cube Angle and Speed Variables
+double Cuboid_Angle_Radians, Cuboid_Angle_Degrees;
+double Cuboid_Angle_Speed_Degrees = 0.0;
+
+// Low pass filter variables
+float t = 0.5f;
+
+// Flywheel Position and Velocity variables
+double Velocity_Input_Voltage = 0.0f;
+double Velocity, Velocity_Voltage, Velocity_rpm, Velocity_Voltage_Read;
+
+
 int main()
 {
-    
-    // Chip must be deselected
-    cs = 1;
 
-    // Setup the spi for 8 bit data, high steady state clock,
-    // second edge capture, with a 1MHz clock rate
-    spi.format(8, 0);
-    spi.frequency(500000);
-
-    // Select the device by seting chip select low
-    cs = 0;
-
-    // Send 0x8f, the command to read the WHOAMI register
-    spi.write(0x75);
-
-    // Send a dummy byte to receive the contents of the WHOAMI register
-    int whoami = spi.write(0x01);
-    printf("WHOAMI register = 0x%X\n", whoami);
-
-    // Deselect the device
-    cs = 1;
-    
-    
-    
     mpu.init_inav();
     //printf("mpu_init_result: %d\n", mpu_init_result);
-    thread_sleep_for(2000);
+    thread_sleep_for(500);
     
-    // Works 
-    unsigned int mpu_WhomAmI = mpu.whoami();
-    printf("mpu_WhomAmI: %d\n", mpu_WhomAmI);
-    thread_sleep_for(2000);
-
-    // Send 0x8f, the command to read the WHOAMI register
-    spi.write(0x75);
-    whoami = spi.write(0x01);
-    printf("WHOAMI register = 0x%X\n", whoami);
-
+    bool mpu6050TestResult = mpu.testConnection();
+    if(mpu6050TestResult) {
+        printf("MPU6050 test passed \n\r");
+    } else {
+        printf("MPU6050 test failed \n\r");
+    }	
+    mpu.configuration();
     
-    int16_t Temperature;
     
     float Acc;
     // Initialise the digital pin LED1 as an output
@@ -70,17 +80,9 @@ int main()
         Acc = mpu.accZ;
         //Acc = 1.234f;
         printf("Acc %0.6f\n", Acc);
-        
 
-        /*
-        Temperature = mpu.read_temp();
-        printf("Temperature %d\n", Temperature);
-        */
 
     }
-//Are commits working?
-//printf("Just to check if commits work")
-
 
     /*
             while (true) {

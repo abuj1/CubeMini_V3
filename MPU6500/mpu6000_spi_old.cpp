@@ -1,7 +1,7 @@
  
 #include <mbed.h>
 #include "mpu6000_spi_old.h"
-#include "mpu6000_registermap.h"
+#include "mpu6500_registermap.h"
  
 mpu6000_spi::mpu6000_spi(SPI& _spi, PinName _cs) : spi(_spi), cs(_cs) {}
  

@@ -2,7 +2,7 @@
 #define MPU6000_SPI_H_
 
 #include "mbed.h"
-#include "mpu6000_registermap.h"
+#include "mpu6500_registermap.h"
  
 class mpu6000_spi
 {
