@@ -307,8 +307,32 @@ float mpu6500_spi::readGyro(int axis){
     data=(float)bit_data;
     data=data/gyro_divider;
     
-    return data;
+    return data;    
 }
+
+float mpu6500_spi::readGyro_raw(int axis){
+    uint8_t responseH,responseL;
+    int16_t bit_data;
+    float data;
+    select();
+    switch (axis){
+        case 0:
+        responseH=spi.write(MPUREG_GYRO_XOUT_H | READ_FLAG);
+        break;
+        case 1:
+        responseH=spi.write(MPUREG_GYRO_YOUT_H | READ_FLAG);
+        break;
+        case 2:
+        responseH=spi.write(MPUREG_GYRO_ZOUT_H | READ_FLAG);
+        break;
+    }
+    responseH=spi.write(0x00);
+    responseL=spi.write(0x00);
+	deselect();
+    bit_data=((int16_t)responseH<<8)|responseL;
+    return bit_data;    
+}
+
 void mpu6500_spi::readGyro(void){
     uint8_t responseHx,responseLx,responseHy,responseLy,responseHz,responseLz;
     int16_t bit_data;

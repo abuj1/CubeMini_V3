@@ -1,4 +1,4 @@
-// MPU6000 registers
+// MPU6500 registers
 #define MPUREG_XG_OFFS_TC           0x00
 #define MPUREG_YG_OFFS_TC           0x01
 #define MPUREG_ZG_OFFS_TC           0x02
@@ -26,6 +26,7 @@
 #define MPUREG_CONFIG               0x1A
 #define MPUREG_GYRO_CONFIG          0x1B
 #define MPUREG_ACCEL_CONFIG         0x1C
+#define MPUREG_ACCEL_CONFIG_2       0x1D
 #define MPUREG_INT_PIN_CFG          0x37
 #define MPUREG_INT_ENABLE           0x38
 #define MPUREG_ACCEL_XOUT_H         0x3B
@@ -42,6 +43,7 @@
 #define MPUREG_GYRO_YOUT_L          0x46
 #define MPUREG_GYRO_ZOUT_H          0x47
 #define MPUREG_GYRO_ZOUT_L          0x48
+#define MPUREG_SIGNAL_PATH_RESET    0x68
 #define MPUREG_USER_CTRL            0x6A
 #define MPUREG_PWR_MGMT_1           0x6B
 #define MPUREG_PWR_MGMT_2           0x6C
@@ -54,6 +56,7 @@
 #define MPUREG_FIFO_COUNTL          0x73
 #define MPUREG_FIFO_R_W             0x74
 #define MPUREG_WHOAMI               0x75
+
  
 // Configuration bits MPU6000
 #define BIT_SLEEP                   0x40

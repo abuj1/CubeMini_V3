@@ -75,7 +75,8 @@ class mpu6500_spi
     -----------------------------------------------------------------------------------------------*/
     float readGyro(int axis);
     void readGyro(void);
-		void readAccTempGyro(void);
+    float readGyro_raw(int axis);
+	void readAccTempGyro(void);
 
     /*-----------------------------------------------------------------------------------------------
                                     GYROSCOPE SCALE
