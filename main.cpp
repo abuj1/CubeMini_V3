@@ -7,6 +7,8 @@
 #include "platform/mbed_thread.h"
 #include "mpu6500_spi.h"                // IMU Library
 #include "IIR_filter.h"
+#include "ControllerLoop.h"
+#include "ThreadFlag.h"
 
 // Blinking rate in milliseconds
 #define BLINKING_RATE_MS                                                    1000
@@ -70,10 +72,10 @@ IIR_filter FilterGyro(t, Ts, t);
 
 
 // Interrupts
-Ticker  ControllerLoopTimer;            // Interrupt for control loop
-EventQueue *queue = mbed_event_queue(); // event queue
+//Ticker  ControllerLoopTimer;            // Interrupt for control loop
 
-Ticker flipper;
+
+//Ticker flipper;
 DigitalOut led1(LED1);
 
 void flip()
@@ -119,11 +121,11 @@ int main()
     
     led1 = 1;
 
-    ControllerLoopTimer.attach(&updateControllers, 1000ms);
+    //ControllerLoopTimer.attach(&updateControllers, 1000ms);
     //flipper.attach(&flip, 2000ms); // the address of the function to be attached (flip) and the interval (2 seconds)
     //queue->dispatch_forever();
 
-    while (1) {
+    while (0) {
         //mpu.readAcc();
         //Acc = mpu.accZ;
         AccX_Raw = mpu.readAcc_raw(0);
@@ -165,7 +167,21 @@ int main()
             }
     }
 
-}
+        // --------- Mirror kinematik, define values, trafos etc there
+
+    ControllerLoop loop(Ts);                        // this is forthe main controller loop
+
+    loop.init_controllers();
+    loop.start_loop();
+    thread_sleep_for(200);
+    printf("Start Mirroractuator 2.0");
+
+    while(1)
+        {
+        thread_sleep_for(200);
+        }
+}   // END OF main
+
 
 //******************************************************************************
 //------------------ Control Loop (called via interrupt) -----------------------
