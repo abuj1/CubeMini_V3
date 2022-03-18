@@ -37,9 +37,9 @@ bool mpu6500_spi::init_inav(){
     // Ensure the FCHOICE_B bits in the MPUREG_GYRO_CONFIG register are set to 00 for this to work, specially when configuring the gyro range later on.
     write2spi(MPUREG_CONFIG,0x03);
 		ThisThread::sleep_for(chrono::milliseconds(15));
-    // Set Accelerometer Digital Low Pass Filter (DLPF) Bandwidth to 41 Hz (11.80 ms).
+    // Set Accelerometer Digital Low Pass Filter (DLPF) Bandwidth to 184 Hz (5.80 ms). Used to be at 41 Hz, changed it bc of the delay time.
     // Ensure the ACCEL_FCHOICE_B bit in the MPUREG_ACCEL_CONFIG_2 register are set to 0 for this to work.
-    write2spi(MPUREG_ACCEL_CONFIG_2,0x03);
+    write2spi(MPUREG_ACCEL_CONFIG_2,0x01);
 		ThisThread::sleep_for(chrono::milliseconds(15));       
 
     // Sets the Sampler rate divider to 0, which would result in a sample rate of 1Hz for the gyro when DLPF is enabled.

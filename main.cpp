@@ -7,9 +7,9 @@
 #include "platform/mbed_thread.h"
 #include "mpu6500_spi.h"                // IMU Library
 #include "IIR_filter.h"
-#include "ControllerLoop.h"
-#include "ThreadFlag.h"
-
+#include "EncoderCounter.h"
+#include "DiffCounter.h"
+#include "LinearCharacteristics.h"
 // Blinking rate in milliseconds
 #define BLINKING_RATE_MS                                                    1000
 // PI Values
@@ -17,8 +17,24 @@
 #define pi 3.1415927f
 
 
+
 SPI spi(PA_12, PA_11, PA_1); // mosi, miso, sclk
 DigitalOut cs(PB_0); // Chip Select Pin
+
+// -------------------------------
+// Analog/Digitsl I/O Definitions
+// -------------------------------
+//AnalogIn Velocity_Voltage_Input(p5); // Velocity Input as Analogue Signal from Escon
+//DigitalOut Pin_3V3(p30);             // Defining P30 as 3V3 Pin for internal use. Please do not modify.
+InterruptIn Button(PA_10);        // User Button Interrput
+DigitalOut Escon_Enable(PB_1);
+//DigitalOut GLED(p21);
+AnalogOut Voltage(PA_4);
+
+// User Button
+int Button_Status = 0;                  // User Button Status
+Timer T_Button;                         // define timer for button
+
 
 mpu6500_spi mpu(spi, PB_0);
 float Acc = 0.0f;
@@ -29,6 +45,12 @@ float Acc = 0.0f;
 
 // Sample time of main loops
 float Ts = 0.007; // Around 143 Hz. Do not change. This is the lowest value possible if printing to a serial connection is needed.
+
+EncoderCounter Encoder_counter1(PA_8, PA_9);    // initialize counter on A: PA_8, B: PA_9
+DiffCounter diff(0.01,Ts);              // discrete differentiate, based on encoder data
+
+//LCs
+LinearCharacteristics CurrentToVoltage(-15.0f, 15.0f, 0.0f, 5.0f);
 
 // MPU 6050 Variables - Acceleration and Gyroscope Raw and Converted Data Variables
 int16_t AccX_Raw, AccY_Raw, AccZ_Raw;
@@ -72,10 +94,10 @@ IIR_filter FilterGyro(t, Ts, t);
 
 
 // Interrupts
-//Ticker  ControllerLoopTimer;            // Interrupt for control loop
+Ticker  ControllerLoopTimer;            // Interrupt for control loop
+EventQueue *queue = mbed_event_queue(); // event queue
 
-
-//Ticker flipper;
+Ticker flipper;
 DigitalOut led1(LED1);
 
 void flip()
@@ -83,12 +105,18 @@ void flip()
     led1 = !led1;
 }
 
+// USer Button
+void pressed(void);                     // user Button pressed
+void released(void);                    // user Button released
+
+
 // -------------------------------
 //  Functions
 // -------------------------------
 
 // Timers
 //Timer Loop;
+Timer Code_Timer;
 
 void processInUserContext() {
     //printf("printing in a user context. counter = %d\r\n", counter);
@@ -98,11 +126,14 @@ void processInUserContext() {
 void updateControllers()
 {
         //printf("Hello World!\n");
-        //Acc = 1.234f;
+        Acc = 1.234f;
         //queue->call(&processInUserContext); // defer the execution to a different context
 }
 
+// Flywheel Position and Velocity variables 
+long double counts, Counts_Revs, Counts_Radians, Velocity_E;
 
+double Code_Time;
 
 int main()
 {
@@ -121,11 +152,24 @@ int main()
     
     led1 = 1;
 
-    //ControllerLoopTimer.attach(&updateControllers, 1000ms);
+    //ControllerLoopTimer.attach(&updateControllers, 1ms);
     //flipper.attach(&flip, 2000ms); // the address of the function to be attached (flip) and the interval (2 seconds)
     //queue->dispatch_forever();
 
-    while (0) {
+    Button.fall(&pressed);          // attach key pressed function
+    Button.rise(&released);         // attach key pressed function
+
+    diff.reset(0.0f,0.0f);
+
+    while (1) {
+
+        //Code_Timer.start();
+        counts = Encoder_counter1.read();   // get counts from Encoder
+        Counts_Revs = (Encoder_counter1.read())*(-1.0f/2048.0f)*(1.0f/4.0f);
+        Counts_Radians = (Encoder_counter1.read())*(-1.0f/2048.0f)*(1.0f/4.0f)*(2.0f*pi);
+        Velocity_E = diff(counts)*9.5493;           // motor velocity // The 2048.0f in defined in the Diff library. Fix this!
+
+
         //mpu.readAcc();
         //Acc = mpu.accZ;
         AccX_Raw = mpu.readAcc_raw(0);
@@ -156,33 +200,59 @@ int main()
 
         // ----- Combine Accelerometer Data and Gyro Data to Get Angle ------
 
-        Cuboid_Angle_Radians =  -1*atan2(-FilterAccX(AccX_g), FilterAccY(AccY_g)) + 0.7854f + FilterGyro(GyroZ_RadiansPerSecond);
+        Cuboid_Angle_Radians =  -1*atan2(-FilterAccX(AccX_g), FilterAccY(AccY_g)) + FilterGyro(GyroZ_RadiansPerSecond); // + 0.7854f
         Cuboid_Angle_Degrees = Cuboid_Angle_Radians*180.0f/pi;
+
+
+        // Output
+        Voltage.write(0.1f);
 
         thread_sleep_for(7);
             // Print Data // Printing Rate (in this case) is every Ts*100 = 0.007*100 = every 0.7 seconds
+        //Code_Timer.stop();
+        //Code_Time = Code_Timer.read();
+        //Code_Timer.reset();
         if(++k >= 10) {
             k = 0;
-            printf("ACuboid_Angle_Degrees %0.6f\n", Cuboid_Angle_Degrees);
+            //printf("ACuboid_Angle_Degrees %0.6f\n", Cuboid_Angle_Degrees);
+            printf("Velocity_E %1.5Lf, Angle %0.6f\n", Velocity_E, Cuboid_Angle_Degrees);
             }
     }
 
-        // --------- Mirror kinematik, define values, trafos etc there
-
-    ControllerLoop loop(Ts);                        // this is forthe main controller loop
-
-    loop.init_controllers();
-    loop.start_loop();
-    thread_sleep_for(200);
-    printf("Start Mirroractuator 2.0");
-
-    while(1)
-        {
-        thread_sleep_for(200);
-        }
-}   // END OF main
-
+}
 
 //******************************************************************************
 //------------------ Control Loop (called via interrupt) -----------------------
 //******************************************************************************
+
+//******************************************************************************
+//------------------ User functions like buttons handle etc. -------------------
+//******************************************************************************
+
+//...
+// start timer as soon as Button is pressed
+void pressed()
+{
+    T_Button.start();
+}
+// Falling edge of button: enable/disable controller
+void released()
+{
+    // readout, stop and reset timer
+    float ButtonTime = T_Button.read();
+    T_Button.stop();
+    T_Button.reset();
+    if(ButtonTime > 0.05f) {
+        /*
+        Button_Status = Button_Status + 1;
+        if (Button_Status > 3.0f) {
+            Button_Status = 1.0;
+            
+        }
+        */
+        Escon_Enable = !Escon_Enable;
+        //bool B2_Status = Escon_Enable.read();
+        //pc.printf("Button Status: %i\r\n", Button_Status);
+        //printf("Button Status: %d\r\n", B2_Status);
+    }
+}
