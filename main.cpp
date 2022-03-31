@@ -76,7 +76,7 @@ double Cuboid_Angle_Radians, Cuboid_Angle_Degrees;
 double Cuboid_Angle_Speed_Degrees = 0.0;
 
 // Low pass filter variables
-float t = 0.5f;
+float t = 0.9f; //Old 0.5f;
 
 // Flywheel Position and Velocity variables
 double Velocity_Input_Voltage = 0.0f;
@@ -272,21 +272,26 @@ int main()
             Escon_Enable = 1;
             // Current Input Updater - Amperes
             // Loop 1
-            Loop1_output = Cuboid_Angle_Radians*K_SS_Controller[0];
+            Loop1_output = (Cuboid_Angle_Radians)*K_SS_Controller[0];
             // Loop 2
             Loop2_output = GyroZ_RadiansPerSecond*K_SS_Controller[1];
             // PI Controller
-            PID_Input = Desired_input - Velocity;
+            PID_Input = 0.0f - Velocity;
             PID_Output = C1.update(PID_Input);
 
             // System input
-            //Sys_input_Amps = PID_Output - Loop1_output - Loop2_output;
-            Sys_input_Amps = 0.0f - Loop1_output - Loop2_output;
+            Sys_input_Amps = PID_Output - Loop1_output - Loop2_output;
 
             // Do Not Modify - This is implemented to prevent the Cube from continuously speeding up while being still for after falling due to the user interrupting its movement
-            if ( abs(Velocity) > 250.0f && (abs(Cuboid_Angle_Degrees)<50.0f && abs(Cuboid_Angle_Degrees)>40.0f) ) {
+            if ( abs(Velocity) > 200.0f && ((abs(Cuboid_Angle_Degrees)<50.0f && abs(Cuboid_Angle_Degrees)>40.0f) || ((Cuboid_Angle_Degrees)<140.0f && (Cuboid_Angle_Degrees)>130.0f) || ((Cuboid_Angle_Degrees)<235.0f && (Cuboid_Angle_Degrees)>225.0f))) {
+                C1.reset(0.0f);
                 Button_Status = 4;
                 break;
+            }
+            if (Button_Status == 1) {
+                C1.reset(0.0f);
+                Button_Status = 3;
+                Button_Status = 0;
             }
             break;
 
