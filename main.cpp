@@ -115,7 +115,8 @@ float Desired_input = 0.0f;
 float Sys_input_Amps = 0.0f;
 
 // Sate Space Controller Values
-float K_SS_Controller [2] = {-57.1176*0.25, -2.6398*1.5}; // From Matlab // {-57.1176*0.3, -2.6398*1.5}; // From Matlab
+//float K_SS_Controller [2] = {-57.1176*0.25, -2.6398*1.5}; // From Matlab // {-57.1176*0.3, -2.6398*1.5}; // From Matlab
+float K_SS_Controller [2] = {-102.45,  -4.914}; // From Matlab Poles at -28 + 15i, -28 - 15i
 
 // -------------------------------
 //  User-Defined Functions
@@ -133,7 +134,7 @@ IIR_filter FilterGyro(t, Ts, t);
 
 // PID (PI) Controller (My PID Controller is fine but needs clarity updates)
 PID_Cntrl  C1(Kp_1,Ki_1,Kd_1,Tf_1,Ts,uMin1,uMax1);   // Defining the 1st Loop Controller (PI-Part)
-PID_Cntrl  C2(Kp_2,Ki_2,Kd_2,Tf_2,Ts,uMin1,uMax1);   // Defining the PI Controller for Chase (State 2) to keep motor velocity at zero
+PID_Cntrl  C2(Kp_2,Ki_2,Kd_2,Tf_2,Ts,uMin1,uMax1);   // Defining the PI Controller for Case (State 2) to keep motor velocity at zero
 PID_Cntrl  C3(Kp_1*2.5,Ki_1*1.5,Kd_2,Tf_2,Ts,uMin1,uMax1); // Safety Implementation in Case 4 PID
 
 
